@@ -1,3 +1,4 @@
+
 name: Android debug APK
 
 on:
@@ -51,7 +52,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Accept Android SDK licences and install required SDK packages
         shell: bash
