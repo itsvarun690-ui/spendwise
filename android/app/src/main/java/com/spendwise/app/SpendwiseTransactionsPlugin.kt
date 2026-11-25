@@ -1,11 +1,6 @@
 
 package com.spendwise.app
 
-import androidx.work.Constraints
-import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -37,8 +32,6 @@ class SpendwiseTransactionsPlugin : Plugin() {
                 context,
                 fields.mapValues { it.value!! }
             )
-
-            enqueueConfirmedDrafts()
             call.resolve()
         } catch (e: Exception) {
             call.reject("Unable to securely store session", e)
@@ -62,22 +55,5 @@ class SpendwiseTransactionsPlugin : Plugin() {
         }
 
         call.resolve(result)
-    }
-
-    private fun enqueueConfirmedDrafts() {
-        val request =
-            OneTimeWorkRequestBuilder<ConfirmedDraftWorker>()
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
-                .build()
-
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            "spendwise-confirmed-drafts",
-            ExistingWorkPolicy.APPEND_OR_REPLACE,
-            request
-        )
     }
 }
