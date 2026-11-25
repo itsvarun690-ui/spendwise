@@ -1,7 +1,6 @@
 
 package com.spendwise.app
 
-import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -16,20 +15,9 @@ import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
-import com.getcapacitor.PermissionState
 import com.getcapacitor.annotation.CapacitorPlugin
-import com.getcapacitor.annotation.Permission
-import com.getcapacitor.annotation.PermissionCallback
 
-@CapacitorPlugin(
-    name = "SpendwiseTransactions",
-    permissions = [
-        Permission(
-            alias = "sms",
-            strings = [Manifest.permission.RECEIVE_SMS]
-        )
-    ]
-)
+@CapacitorPlugin(name = "SpendwiseTransactions")
 class SpendwiseTransactionsPlugin : Plugin() {
 
     @PluginMethod
@@ -46,11 +34,6 @@ class SpendwiseTransactionsPlugin : Plugin() {
                 .put("candidates", SecureCandidateStore.list(context))
                 .put("paused", SecureCandidateStore.paused(context))
                 .put("selectedSources", sources)
-                .put(
-                    "smsEnabled",
-                    SecureCandidateStore.smsEnabled(context) &&
-                        getPermissionState("sms") == PermissionState.GRANTED
-                )
         )
     }
 
@@ -115,11 +98,7 @@ class SpendwiseTransactionsPlugin : Plugin() {
     @PluginMethod
     fun configure(call: PluginCall) {
         val prefs = context.getSharedPreferences("detection", 0)
-
         val paused = call.getBoolean("paused") ?: true
-        val smsEnabled =
-            call.getBoolean("smsEnabled")
-                ?: prefs.getBoolean("sms_enabled", false)
 
         val packages = call.getArray("packages") ?: JSArray()
         val approved = mutableSetOf<String>()
@@ -133,35 +112,20 @@ class SpendwiseTransactionsPlugin : Plugin() {
         prefs.edit()
             .putBoolean("paused", paused)
             .putStringSet("packages", approved)
-            .putBoolean(
-                "sms_enabled",
-                smsEnabled &&
-                    getPermissionState("sms") == PermissionState.GRANTED
-            )
+            .putBoolean("sms_enabled", false)
             .apply()
 
         if (
             !paused &&
             Build.VERSION.SDK_INT >= 33 &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
+            context.checkSelfPermission(
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             activity.requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
                 8502
             )
-        }
-
-        if (
-            smsEnabled &&
-            getPermissionState("sms") != PermissionState.GRANTED
-        ) {
-            requestPermissionForAlias(
-                "sms",
-                call,
-                "smsPermissionCallback"
-            )
-            return
         }
 
         val sources = JSArray()
@@ -171,45 +135,6 @@ class SpendwiseTransactionsPlugin : Plugin() {
             JSObject()
                 .put("paused", paused)
                 .put("selectedSources", sources)
-                .put(
-                    "smsEnabled",
-                    smsEnabled &&
-                        getPermissionState("sms") == PermissionState.GRANTED
-                )
-        )
-    }
-
-    @PermissionCallback
-    private fun smsPermissionCallback(call: PluginCall) {
-        val granted =
-            getPermissionState("sms") == PermissionState.GRANTED
-
-        val requestedSmsEnabled =
-            call.getBoolean("smsEnabled") ?: false
-
-        context.getSharedPreferences("detection", 0)
-            .edit()
-            .putBoolean(
-                "sms_enabled",
-                granted && requestedSmsEnabled
-            )
-            .apply()
-
-        val prefs = context.getSharedPreferences("detection", 0)
-        val sources = JSArray()
-
-        prefs.getStringSet("packages", emptySet())?.forEach {
-            sources.put(it)
-        }
-
-        call.resolve(
-            JSObject()
-                .put("paused", prefs.getBoolean("paused", true))
-                .put("selectedSources", sources)
-                .put(
-                    "smsEnabled",
-                    granted && prefs.getBoolean("sms_enabled", false)
-                )
         )
     }
 
